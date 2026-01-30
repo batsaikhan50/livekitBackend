@@ -1,0 +1,29 @@
+version: '3.9'
+
+services:
+  token-server:
+    build: .
+    ports:
+      - "3000:3000"
+    restart: always
+
+  livekit:
+    image: livekit/livekit-server:v1.9.10
+    # We use environment variables to pass keys and config to avoid command-line parsing issues
+    environment:
+      LIVEKIT_KEYS: "my_livekit_devkey: SPsypD0fbZwJuO4i2A3FLhQV6KEX7xcR"
+      LIVEKIT_CONFIG: |
+        port: 7880
+        bind_addresses:
+          - 0.0.0.0
+        rtc:
+          port_range_start: 51000
+          port_range_end: 51010
+          udp_port: 7882
+    command: --dev --node-ip 100.100.10.100
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+      - "51000-51010:51000-51010/udp"
+    restart: always
