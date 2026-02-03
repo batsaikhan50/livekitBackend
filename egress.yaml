@@ -1,0 +1,6 @@
+api_key: my_livekit_devkey
+api_secret: SPsypD0fbZwJuO4i2A3FLhQV6KEX7xcR
+livekit_url: http://livekit:7880
+ws_url: ws://livekit:7880
+redis:
+  address: redis:6379

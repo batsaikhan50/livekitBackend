@@ -5,25 +5,40 @@ services:
     build: .
     ports:
       - "3000:3000"
+    volumes:
+      - ./recordings:/recordings
+    environment:
+      - NODE_OPTIONS=--unhandled-rejections=strict
+      - FORCE_COLOR=1 # Sometimes helps with visibility
     restart: always
 
+  redis:
+    image: redis:latest # Using latest
+
   livekit:
-    image: livekit/livekit-server:v1.9.10
-    # We use environment variables to pass keys and config to avoid command-line parsing issues
+    image: livekit/livekit-server:latest
     environment:
       LIVEKIT_KEYS: "my_livekit_devkey: SPsypD0fbZwJuO4i2A3FLhQV6KEX7xcR"
-      LIVEKIT_CONFIG: |
-        port: 7880
-        bind_addresses:
-          - 0.0.0.0
-        rtc:
-          port_range_start: 51000
-          port_range_end: 51010
-          udp_port: 7882
+      LIVEKIT_REDIS_ADDRESS: redis:6379
+      LIVEKIT_EGRESS_WS_URL: ws://livekit:7880
     command: --dev --node-ip 100.100.10.100
     ports:
       - "7880:7880"
       - "7881:7881"
       - "7882:7882/udp"
-      - "51000-51010:51000-51010/udp"
-    restart: always
+    depends_on:
+      - redis
+
+  egress:
+    image: livekit/egress:latest
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      EGRESS_CONFIG_FILE: /etc/egress.yaml
+    volumes:
+      - ./egress.yaml:/etc/egress.yaml
+      - ./recordings:/recordings
+    restart: unless-stopped # ADD THIS: Forces retries if Redis isn't ready
+    depends_on:
+      - redis
+      - livekit
