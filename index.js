@@ -22,10 +22,23 @@ app.post('/start-recording', async (req, res) => {
     if (!room) return res.status(400).json({ error: 'Room name is required' });
 
     try {
+        const now = new Date();
+
+// Force Mongolia timezone
+        const datePart = now.toLocaleDateString('en-CA', {
+            timeZone: 'Asia/Ulaanbaatar'
+        });
+
+        const timePart = now.toLocaleTimeString('en-GB', {
+            timeZone: 'Asia/Ulaanbaatar',
+            hour12: false
+        }).replace(/:/g, '-');
+
+        const timestamp = `${datePart}_${timePart}`;
         const output = {
             file: {
                 fileType: 1, // 1 = MP4
-                filepath: `/recordings/recording-${room}-${Date.now()}.mp4`,
+                filepath: `/recordings/${room}_${timestamp}.mp4`,
             },
         };
 
@@ -50,14 +63,24 @@ app.post('/start-recording', async (req, res) => {
 
 app.post('/stop-recording', async (req, res) => {
     const { room } = req.query;
-    const egressId = activeRecordings.get(room);
-    if (!egressId) return res.status(404).json({ error: 'No recording found' });
+    let egressId = activeRecordings.get(room);
 
     try {
-        await egressClient.stopEgress(egressId);
-        activeRecordings.delete(room);
-        res.json({ success: true });
+        // Find if any egress is active if not in memory
+        if (!egressId) {
+            const list = await egressClient.listEgress({ roomName: room, active: true });
+            if (list.length > 0) egressId = list[0].egressId;
+        }
+
+        if (egressId) {
+            await egressClient.stopEgress(egressId);
+            activeRecordings.delete(room);
+        }
+
+        // ALWAYS return success so the frontend knows it can flip the icon
+        res.json({ success: true, message: 'Recording stopped' });
     } catch (e) {
+        console.error('Stop Error:', e);
         res.status(500).json({ error: e.message });
     }
 });
